@@ -15,6 +15,7 @@
     rust-overlay,
   }: let
     systems = ["x86_64-linux" "aarch64-linux"];
+    version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).workspace.package.version;
     forAll = f:
       nixpkgs.lib.genAttrs systems (system:
         f (import nixpkgs {
@@ -68,11 +69,10 @@
         cargo = toolchain;
         rustc = toolchain;
       };
-      cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
     in rec {
       emskin = rustPlatform.buildRustPackage {
         pname = "emskin";
-        version = cargoToml.workspace.package.version;
+        inherit version;
         src = self;
         cargoLock = {
           lockFile = ./Cargo.lock;
@@ -114,6 +114,16 @@
         LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath (runtimeLibsFor pkgs);
       };
     });
+
+    # The elisp client as an Emacs package, built against the consumer's Emacs:
+    #   emacsWithPackages (epkgs: [(emskin.lib.mkEmacsPackage epkgs)])
+    # Pair it with packages.emskin from the same input so the two match.
+    lib.mkEmacsPackage = epkgs:
+      epkgs.trivialBuild {
+        pname = "emskin";
+        inherit version;
+        src = ./elisp;
+      };
 
     formatter = forAll (pkgs: pkgs.alejandra);
   };
